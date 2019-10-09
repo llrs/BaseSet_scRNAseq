@@ -1,0 +1,12 @@
+name: "my-website"
+output_dir: doc
+navbar:
+  title: "BaseSet and scRNAseq"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "AUCell"
+      href: AUCell.html
+  right:
+    - icon: fa-github
+      href: https://github.com/llrs/BaseSet_scRNASeq

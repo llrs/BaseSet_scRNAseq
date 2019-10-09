@@ -1,0 +1,264 @@
+---
+title: "Example of using BaseSet in the scRNAseq"
+date: "`r format(Sys.time(), '%d %b %Y')`"
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(cache = TRUE, collapse = TRUE)
+```
+
+Here I'll follow AUCell vignette until we reach the point where BaseSet becomes useful.
+
+# Initial setup
+
+As explained here I follow the [AUCell](https://bioconductor.org/packages/AUCell) vignette.
+Later on I use [BaseSet](https://llrs.github.io/BaseSet) to explore the value of fuzzy sets.
+
+```{r libraries, message = FALSE}
+library("GEOquery")
+library("data.table")
+library("AUCell")
+library("GSEABase")
+library("dplyr")
+library("BaseSet")
+library("ggplot2")
+library("reshape2")
+```
+
+
+This are the libraries used
+
+# Get data
+
+We use GEOquery to get the data
+```{r GEOQuery, eval=FALSE, message=FALSE, include=TRUE, paged.print=TRUE}
+geoFile <- getGEOSuppFiles("GSE60361",
+                           makeDirectory = FALSE
+)
+
+gzFile <- grep(".txt.gz", basename(rownames(geoFile)),
+  fixed = TRUE,
+  value = TRUE
+)
+txtFile <- gsub(".gz", "", gzFile, fixed = TRUE)
+gunzip(filename = gzFile, destname = txtFile, remove = TRUE)
+```
+
+As we already have downloaded the file we use:
+
+```{r files}
+geoData <- fread("GSE60361_C1-3005-Expression.txt.gz", sep = "\t")
+geneNames <- unname(unlist(geoData[, 1, with = FALSE]))
+exprMatrix <- as.matrix(geoData[, -1, with = FALSE])
+rownames(exprMatrix) <- geneNames
+```
+
+# Gene set annotation 
+
+Now we obtain the genes that identify each cell type following the vignette. 
+This is a crucial step, but for the moment we follow the vignette.
+```{r geneSets}
+# Save for future use
+gmtFile <- file.path(system.file("examples", package = "AUCell"), 
+                     "geneSignatures.gmt")
+geneSets <- getGmt(gmtFile)
+
+geneSetsSubset <- subsetGeneSets(geneSets, rownames(exprMatrix))
+nGenes(geneSetsSubset)
+```
+
+# AUCell core
+
+
+Now we rank the expression matrix and we use the default setting.
+
+```{r rankCells}
+cells_rankings <- AUCell_buildRankings(exprMatrix, nCores = 1, plotStats = TRUE)
+cells_AUC <- AUCell_calcAUC(geneSets, cells_rankings)
+pars <- par(mfrow = c(2, 3))
+cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist = FALSE, assignCells = TRUE)
+par(pars)
+cellsAssigned <- lapply(cells_assignment, function(x) x$assignment)
+```
+
+Note that there is the recommendation to see individually which is the appropiate threshold.ç
+It might be difficult selecting it right with 6 cells types, and impossible with tenths or hundreds of cell lines.
+
+```{r summaryAUCell}
+cell_by_type <- lengths(cellsAssigned)
+sum(cell_by_type) # Total number of cells assigned
+ncol(exprMatrix) # Initial number of cells
+```
+
+We can see that there are some cells assigned to several cell types!
+
+```{r}
+assignmentTable <- melt(cellsAssigned, value.name = "cell")
+colnames(assignmentTable)[2] <- "geneSet"
+assignmentMat <- table(assignmentTable[, "geneSet"], assignmentTable[, "cell"])
+assignmentMat[, 1:2]
+
+table(apply(assignmentMat, 2, sum))
+```
+
+So the default assigns almost all the cells in several cell lines!! 
+In this case we have `r nrow(assignmentMat)` cell lines, however, in real cases we might be interested in hundreds of cell lines.
+This would make impossible to analyze them one by one.
+
+# Checking with BaseSet the cell assignment
+
+BaseSet implements a new class (TidySet), that works with sets.
+Here the sets are the cell types and the elements are the cells. 
+In this case the membership of a cell to a given cell type is not binary (0/1).
+It is designed to work well with values between 0 and 1.
+
+```{r tidySet}
+AUC <- getAUC(cells_AUC)
+TS <- tidySet(t(AUC))
+```
+
+First we will explore how probable is for each cell to be in several cell types:
+
+```{r element_size}
+es <- element_size(TS)
+es %>%
+  group_by(elements) %>%
+  filter(probability == max(probability)) %>%
+  ungroup() %>%
+  count(size, sort = TRUE)
+```
+
+Each cell is in 4 cell lines or in 5  or in none cell types!
+If this cell markers were accurate we see that the prediction made by AUCells assigns equally likely several different cell types or none. 
+This highlights that the arbitrary threshold that we can set doesn't work well when we have to account for multiple sets.
+
+```{r ggplot2}
+ggplot(es) +
+  geom_jitter(aes(size, probability)) +
+  labs(x = "# cell types assigned", y = "Probability", title = ) +
+  scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  theme_minimal()
+```
+
+We can see that many don't have any assigned cell and some have a 
+
+```{r}
+selected_sizes <- es %>%
+  group_by(elements) %>%
+  mutate(S = case_when(
+    probability == max(probability) ~ "selected",
+    TRUE ~ "rejected")) 
+selected_sizes %>% 
+  ggplot() +
+  geom_jitter(aes(size, probability, col = S)) +
+  labs(x = "# cell types assigned", y = "log10(Probability)", col = "Selected") +
+  scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  theme_minimal()
+```
+
+We can see that this way were are the selected number of cell types and their probability.
+The range of selection of the size is pretty much on the top.
+We can find them easily:
+
+```{r range}
+selected_sizes %>% 
+  subset(S == "selected") %>% 
+  subset(probability %in% range(probability))
+```
+
+# Incorrectly assigned cells
+
+We'll create a function for this.
+In this function we test that the probability of a number of sets is higher than the sum of the other sizes.
+
+```{r incorrect_cells}
+comp_assign <- function(element_size, size) {
+  diff0 <- element_size %>%
+    filter(size != {
+      {
+        size
+      }
+    }) %>%
+    group_by(elements) %>%
+    summarise(s = sum(probability))
+  eq0 <- element_size %>%
+    filter(size == {
+      {
+        size
+      }
+    })
+  md <- merge(diff0, eq0) %>%
+    select(-size)
+  co <- md %>%
+    filter(probability >= s) %>%
+    count() %>%
+    .[, , drop = TRUE]
+
+  if (co != 0) {
+    md %>%
+      filter(probability >= s) %>%
+      pull(elements) %>%
+      as.character()
+  } else {
+    NA
+  }
+}
+cell0 <- comp_assign(es, 0)
+```
+
+We can find that this only happens with some cells that are not assigned a set.
+
+
+```{r cell0}
+cell0
+```
+
+We can check those cells with those from the automatic assignation by AUCell.
+
+```{r}
+tcA <- table(unlist(cellsAssigned))
+missing <- colnames(AUC)[!colnames(AUC) %in% names(tcA) & !colnames(AUC) %in% cell0]
+```
+
+And there is still `r length(missing)` cells without assigned pathway because they fell off the threshold.
+
+# AUCell's assigned cells
+
+From the assigned cells we can also analyze them:
+
+```{r tidyAssigned}
+TS2 <- tidySet(cellsAssigned) %>% 
+  add_elements(colnames(AUC)) # To have all the missing cells
+nElements(TS2) # The original number of cells
+es2 <- element_size(TS2)
+es2 %>%
+  count(size, sort = TRUE)
+```
+
+Using the automatically assigned cell types bye AUCell we can see that they cross the thresholds for several cells too.
+
+This might be explained by the comment at the end of the vignette:
+
+> According to other publications that have used this dataset to evaluate new methods, a relevant group of cells marked as oligodendrocytes are likely doublets (i.e. two cells, for example a mix of an oligodendrocyte + another cell type).
+
+# SesionInfo {.unnumbered}
+
+```{r sessionInfo}
+sessioninfo::session_info()
+```
+
+# Assigning cells 
+
+Maybe now the question you might have is how would I assign each cell to each cell type.
+
+Firstly I wouldn't have any problem  with assigning the one that AUCell would suggest if 
+
+- it were the one with the highest value and 
+- the probability for said cell to have just one cell type would be the highest.
+
+Otherwise, the assignment is mostly incorrect as is done with an arbitrary threshold and without considering all the information available.
+
+In this case with just 6 cell types the assignment is mostly as an example but with hundreds or thousands of cells the problem becomes more apparent

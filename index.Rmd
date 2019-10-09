@@ -1,0 +1,9 @@
+---
+title: "BaseSet and scRNAseq"
+---
+
+I build this site to show how to use [BaseSet](https://llrs.github.io/BaseSet), a package for handling sets, with scRNAseq data.
+
+BaseSet helps to evaluate the cell type imputation. 
+
+If you know tools about cell signatures or imputation of class or activation I would want to hear about them
