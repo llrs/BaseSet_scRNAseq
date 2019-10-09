@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+<meta name="date" content="2019-10-09" />
+
+<title>Example of using BaseSet in the scRNAseq</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">BaseSet and scRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="AUCell.html">AUCell</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/llrs/BaseSet_scRNASeq">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Example of using BaseSet in the scRNAseq</h1>
+<h4 class="date">09 oct 2019</h4>
+
+</div>
+
+
+<p>Here I’ll follow AUCell vignette until we reach the point where BaseSet becomes useful.</p>
+<div id="initial-setup" class="section level1">
+<h1>Initial setup</h1>
+<p>As explained here I follow the <a href="https://bioconductor.org/packages/AUCell">AUCell</a> vignette. Later on I use <a href="https://llrs.github.io/BaseSet">BaseSet</a> to explore the value of fuzzy sets.</p>
+<pre class="r"><code>library(&quot;GEOquery&quot;)
+library(&quot;data.table&quot;)
+library(&quot;AUCell&quot;)
+library(&quot;GSEABase&quot;)
+library(&quot;dplyr&quot;)
+library(&quot;BaseSet&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;reshape2&quot;)</code></pre>
+<p>This are the libraries used</p>
+</div>
+<div id="get-data" class="section level1">
+<h1>Get data</h1>
+<p>We use GEOquery to get the data</p>
+<pre class="r"><code>geoFile &lt;- getGEOSuppFiles(&quot;GSE60361&quot;,
+                           makeDirectory = FALSE
+)
+
+gzFile &lt;- grep(&quot;.txt.gz&quot;, basename(rownames(geoFile)),
+  fixed = TRUE,
+  value = TRUE
+)
+txtFile &lt;- gsub(&quot;.gz&quot;, &quot;&quot;, gzFile, fixed = TRUE)
+gunzip(filename = gzFile, destname = txtFile, remove = TRUE)</code></pre>
+<p>As we already have downloaded the file we use:</p>
+<pre class="r"><code>geoData &lt;- fread(&quot;GSE60361_C1-3005-Expression.txt.gz&quot;, sep = &quot;\t&quot;)
+geneNames &lt;- unname(unlist(geoData[, 1, with = FALSE]))
+exprMatrix &lt;- as.matrix(geoData[, -1, with = FALSE])
+rownames(exprMatrix) &lt;- geneNames</code></pre>
+</div>
+<div id="gene-set-annotation" class="section level1">
+<h1>Gene set annotation</h1>
+<p>Now we obtain the genes that identify each cell type following the vignette. This is a crucial step, but for the moment we follow the vignette.</p>
+<pre class="r"><code># Save for future use
+gmtFile &lt;- file.path(system.file(&quot;examples&quot;, package = &quot;AUCell&quot;), 
+                     &quot;geneSignatures.gmt&quot;)
+geneSets &lt;- getGmt(gmtFile)
+
+geneSetsSubset &lt;- subsetGeneSets(geneSets, rownames(exprMatrix))
+nGenes(geneSetsSubset)
+##       Astrocyte_Cahoy          Neuron_Cahoy Oligodendrocyte_Cahoy 
+##                  2137                  1607                  1751 
+##        Astrocyte_Lein           Neuron_Lein       Microglia_lavin 
+##                    34                    60                   603</code></pre>
+</div>
+<div id="aucell-core" class="section level1">
+<h1>AUCell core</h1>
+<p>Now we rank the expression matrix and we use the default setting.</p>
+<pre class="r"><code>cells_rankings &lt;- AUCell_buildRankings(exprMatrix, nCores = 1, plotStats = TRUE)
+## Quantiles for the number of genes detected by cell: 
+## (Non-detected genes are shuffled at the end of the ranking. Keep it in mind when choosing the threshold for calculating the AUC).</code></pre>
+<p><img src="AUCell_files/figure-html/rankCells-1.png" width="672" /></p>
+<pre><code>##     min      1%      5%     10%     50%    100% 
+##  770.00 1048.04 1434.00 1747.60 3630.00 8146.00
+cells_AUC &lt;- AUCell_calcAUC(geneSets, cells_rankings)
+## Genes in the gene sets NOT available in the dataset: 
+##  Astrocyte_Cahoy:    481 (18% of 2618)
+##  Neuron_Cahoy:   429 (21% of 2036)
+##  Oligodendrocyte_Cahoy:  476 (21% of 2227)
+##  Astrocyte_Lein:     12 (26% of 46)
+##  Neuron_Lein:    13 (18% of 73)
+##  Microglia_lavin:    16 (3% of 619)
+pars &lt;- par(mfrow = c(2, 3))
+cells_assignment &lt;- AUCell_exploreThresholds(cells_AUC, plotHist = FALSE, assignCells = TRUE)
+par(pars)
+cellsAssigned &lt;- lapply(cells_assignment, function(x) x$assignment)</code></pre>
+<p>Note that there is the recommendation to see individually which is the appropiate threshold.ç It might be difficult selecting it right with 6 cells types, and impossible with tenths or hundreds of cell lines.</p>
+<pre class="r"><code>cell_by_type &lt;- lengths(cellsAssigned)
+sum(cell_by_type) # Total number of cells assigned
+## [1] 4969
+ncol(exprMatrix) # Initial number of cells
+## [1] 3005</code></pre>
+<p>We can see that there are some cells assigned to several cell types!</p>
+<pre class="r"><code>assignmentTable &lt;- melt(cellsAssigned, value.name = &quot;cell&quot;)
+colnames(assignmentTable)[2] &lt;- &quot;geneSet&quot;
+assignmentMat &lt;- table(assignmentTable[, &quot;geneSet&quot;], assignmentTable[, &quot;cell&quot;])
+assignmentMat[, 1:2]
+##                        
+##                         1772058148_A03 1772058148_A05
+##   Astrocyte_Cahoy                    1              1
+##   Astrocyte_Lein                     1              0
+##   Microglia_lavin                    0              1
+##   Neuron_Cahoy                       0              0
+##   Neuron_Lein                        0              0
+##   Oligodendrocyte_Cahoy              1              0
+
+table(apply(assignmentMat, 2, sum))
+## 
+##    1    2    3    4 
+##  794 1883  103   25</code></pre>
+<p>So the default assigns almost all the cells in several cell lines!! In this case we have 6 cell lines, however, in real cases we might be interested in hundreds of cell lines. This would make impossible to analyze them one by one.</p>
+</div>
+<div id="checking-with-baseset-the-cell-assignment" class="section level1">
+<h1>Checking with BaseSet the cell assignment</h1>
+<p>BaseSet implements a new class (TidySet), that works with sets. Here the sets are the cell types and the elements are the cells. In this case the membership of a cell to a given cell type is not binary (0/1). It is designed to work well with values between 0 and 1.</p>
+<pre class="r"><code>AUC &lt;- getAUC(cells_AUC)
+TS &lt;- tidySet(t(AUC))</code></pre>
+<p>First we will explore how probable is for each cell to be in several cell types:</p>
+<pre class="r"><code>es &lt;- element_size(TS)
+es %&gt;%
+  group_by(elements) %&gt;%
+  filter(probability == max(probability)) %&gt;%
+  ungroup() %&gt;%
+  count(size, sort = TRUE)
+## # A tibble: 3 x 2
+##    size     n
+##   &lt;dbl&gt; &lt;int&gt;
+## 1     5  2370
+## 2     0   596
+## 3     4    39</code></pre>
+<p>Each cell is in 4 cell lines or in 5 or in none cell types! If this cell markers were accurate we see that the prediction made by AUCells assigns equally likely several different cell types or none. This highlights that the arbitrary threshold that we can set doesn’t work well when we have to account for multiple sets.</p>
+<pre class="r"><code>ggplot(es) +
+  geom_jitter(aes(size, probability)) +
+  labs(x = &quot;# cell types assigned&quot;, y = &quot;Probability&quot;, title = ) +
+  scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  theme_minimal()</code></pre>
+<p><img src="AUCell_files/figure-html/ggplot2-1.png" width="672" /></p>
+<p>We can see that many don’t have any assigned cell and some have a</p>
+<pre class="r"><code>selected_sizes &lt;- es %&gt;%
+  group_by(elements) %&gt;%
+  mutate(S = case_when(
+    probability == max(probability) ~ &quot;selected&quot;,
+    TRUE ~ &quot;rejected&quot;)) 
+selected_sizes %&gt;% 
+  ggplot() +
+  geom_jitter(aes(size, probability, col = S)) +
+  labs(x = &quot;# cell types assigned&quot;, y = &quot;log10(Probability)&quot;, col = &quot;Selected&quot;) +
+  scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  theme_minimal()</code></pre>
+<p><img src="AUCell_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>We can see that this way were are the selected number of cell types and their probability. The range of selection of the size is pretty much on the top. We can find them easily:</p>
+<pre class="r"><code>selected_sizes %&gt;% 
+  subset(S == &quot;selected&quot;) %&gt;% 
+  subset(probability %in% range(probability))
+## # A tibble: 2 x 4
+## # Groups:   elements [2]
+##   elements        size probability S       
+##   &lt;chr&gt;          &lt;dbl&gt;       &lt;dbl&gt; &lt;chr&gt;   
+## 1 1772066107_E06     5       0.344 selected
+## 2 1772071040_D01     0       0.560 selected</code></pre>
+</div>
+<div id="incorrectly-assigned-cells" class="section level1">
+<h1>Incorrectly assigned cells</h1>
+<p>We’ll create a function for this. In this function we test that the probability of a number of sets is higher than the sum of the other sizes.</p>
+<pre class="r"><code>comp_assign &lt;- function(element_size, size) {
+  diff0 &lt;- element_size %&gt;%
+    filter(size != {
+      {
+        size
+      }
+    }) %&gt;%
+    group_by(elements) %&gt;%
+    summarise(s = sum(probability))
+  eq0 &lt;- element_size %&gt;%
+    filter(size == {
+      {
+        size
+      }
+    })
+  md &lt;- merge(diff0, eq0) %&gt;%
+    select(-size)
+  co &lt;- md %&gt;%
+    filter(probability &gt;= s) %&gt;%
+    count() %&gt;%
+    .[, , drop = TRUE]
+
+  if (co != 0) {
+    md %&gt;%
+      filter(probability &gt;= s) %&gt;%
+      pull(elements) %&gt;%
+      as.character()
+  } else {
+    NA
+  }
+}
+cell0 &lt;- comp_assign(es, 0)</code></pre>
+<p>We can find that this only happens with some cells that are not assigned a set.</p>
+<pre class="r"><code>cell0
+##  [1] &quot;1772058171_A01&quot; &quot;1772058171_A06&quot; &quot;1772058171_A12&quot; &quot;1772058171_E11&quot;
+##  [5] &quot;1772058171_E12&quot; &quot;1772058171_G04&quot; &quot;1772058171_G09&quot; &quot;1772058177_A05&quot;
+##  [9] &quot;1772058177_D01&quot; &quot;1772058177_H02&quot; &quot;1772060224_C09&quot; &quot;1772060225_H04&quot;
+## [13] &quot;1772060226_F08&quot; &quot;1772062111_F09&quot; &quot;1772062111_H12&quot; &quot;1772062113_H07&quot;
+## [17] &quot;1772062128_D06&quot; &quot;1772063070_F11&quot; &quot;1772063071_B06&quot; &quot;1772063071_B12&quot;
+## [21] &quot;1772063071_D01&quot; &quot;1772063071_D02&quot; &quot;1772063071_D11&quot; &quot;1772063071_E02&quot;
+## [25] &quot;1772063071_F12&quot; &quot;1772063071_G02&quot; &quot;1772063079_A07&quot; &quot;1772063079_A09&quot;
+## [29] &quot;1772063079_A11&quot; &quot;1772063079_C02&quot; &quot;1772063079_H12&quot; &quot;1772067058_F03&quot;
+## [33] &quot;1772067073_B09&quot; &quot;1772067073_H10&quot; &quot;1772071040_D01&quot; &quot;1772071040_E11&quot;</code></pre>
+<p>We can check those cells with those from the automatic assignation by AUCell.</p>
+<pre class="r"><code>tcA &lt;- table(unlist(cellsAssigned))
+missing &lt;- colnames(AUC)[!colnames(AUC) %in% names(tcA) &amp; !colnames(AUC) %in% cell0]</code></pre>
+<p>And there is still 164 cells without assigned pathway because they fell off the threshold.</p>
+</div>
+<div id="aucells-assigned-cells" class="section level1">
+<h1>AUCell’s assigned cells</h1>
+<p>From the assigned cells we can also analyze them:</p>
+<pre class="r"><code>TS2 &lt;- tidySet(cellsAssigned) %&gt;% 
+  add_elements(colnames(AUC)) # To have all the missing cells
+nElements(TS2) # The original number of cells
+## [1] 3005
+es2 &lt;- element_size(TS2)
+es2 %&gt;%
+  count(size, sort = TRUE)
+## # A tibble: 5 x 2
+##    size     n
+##   &lt;dbl&gt; &lt;int&gt;
+## 1     2  1883
+## 2     1   794
+## 3     0   200
+## 4     3   103
+## 5     4    25</code></pre>
+<p>Using the automatically assigned cell types bye AUCell we can see that they cross the thresholds for several cells too.</p>
+<p>This might be explained by the comment at the end of the vignette:</p>
+<blockquote>
+<p>According to other publications that have used this dataset to evaluate new methods, a relevant group of cells marked as oligodendrocytes are likely doublets (i.e. two cells, for example a mix of an oligodendrocyte + another cell type).</p>
+</blockquote>
+</div>
+<div id="sesioninfo" class="section level1 unnumbered">
+<h1>SesionInfo</h1>
+<pre class="r"><code>sessioninfo::session_info()
+## ─ Session info ──────────────────────────────────────────────────────────
+##  setting  value                       
+##  version  R version 3.6.0 (2019-04-26)
+##  os       Ubuntu 19.04                
+##  system   x86_64, linux-gnu           
+##  ui       X11                         
+##  language (EN)                        
+##  collate  en_US.UTF-8                 
+##  ctype    en_US.UTF-8                 
+##  tz       Europe/Madrid               
+##  date     2019-10-09                  
+## 
+## ─ Packages ──────────────────────────────────────────────────────────────
+##  package              * version   date       lib
+##  annotate             * 1.62.0    2019-05-02 [1]
+##  AnnotationDbi        * 1.46.1    2019-08-20 [1]
+##  assertthat             0.2.1     2019-03-21 [1]
+##  AUCell               * 1.6.1     2019-06-05 [1]
+##  backports              1.1.5     2019-10-02 [1]
+##  BaseSet              * 0.0.9     2019-10-07 [1]
+##  Biobase              * 2.44.0    2019-05-02 [1]
+##  BiocGenerics         * 0.30.0    2019-05-02 [1]
+##  BiocParallel           1.18.1    2019-08-06 [1]
+##  bit                    1.1-14    2018-05-29 [1]
+##  bit64                  0.9-7     2017-05-08 [1]
+##  bitops                 1.0-6     2013-08-17 [1]
+##  blob                   1.2.0     2019-07-09 [1]
+##  cli                    1.1.0     2019-03-19 [1]
+##  colorspace             1.4-1     2019-03-18 [1]
+##  crayon                 1.3.4     2017-09-16 [1]
+##  data.table           * 1.12.4    2019-10-03 [1]
+##  DBI                    1.0.0     2018-05-02 [1]
+##  DelayedArray           0.10.0    2019-05-02 [1]
+##  digest                 0.6.21    2019-09-20 [1]
+##  dplyr                * 0.8.3     2019-07-04 [1]
+##  evaluate               0.14      2019-05-28 [1]
+##  GenomeInfoDb           1.20.0    2019-05-02 [1]
+##  GenomeInfoDbData       1.2.1     2019-05-14 [1]
+##  GenomicRanges          1.36.1    2019-09-06 [1]
+##  GEOquery             * 2.52.0    2019-05-02 [1]
+##  ggplot2              * 3.2.1     2019-08-10 [1]
+##  glue                   1.3.1     2019-03-12 [1]
+##  graph                * 1.62.0    2019-05-02 [1]
+##  GSEABase             * 1.46.0    2019-05-02 [1]
+##  gtable                 0.3.0     2019-03-25 [1]
+##  hms                    0.5.1     2019-08-23 [1]
+##  htmltools              0.4.0     2019-10-04 [1]
+##  httpuv                 1.5.2     2019-09-11 [1]
+##  IRanges              * 2.18.3    2019-09-24 [1]
+##  knitr                  1.25      2019-09-18 [1]
+##  later                  1.0.0     2019-10-04 [1]
+##  lattice                0.20-38   2018-11-04 [1]
+##  lazyeval               0.2.2     2019-03-15 [1]
+##  lifecycle              0.1.0     2019-08-01 [1]
+##  limma                  3.40.6    2019-07-26 [1]
+##  magrittr               1.5       2014-11-22 [1]
+##  Matrix                 1.2-17    2019-03-22 [1]
+##  matrixStats            0.55.0    2019-09-07 [1]
+##  memoise                1.1.0     2017-04-21 [1]
+##  mime                   0.7       2019-06-11 [1]
+##  munsell                0.5.0     2018-06-12 [1]
+##  pillar                 1.4.2     2019-06-29 [1]
+##  pkgconfig              2.0.3     2019-09-22 [1]
+##  plyr                   1.8.4     2016-06-08 [1]
+##  promises               1.1.0     2019-10-04 [1]
+##  purrr                  0.3.2     2019-03-15 [1]
+##  R.methodsS3            1.7.1     2016-02-16 [1]
+##  R.oo                   1.22.0    2018-04-22 [1]
+##  R.utils                2.9.0     2019-06-13 [1]
+##  R6                     2.4.0     2019-02-14 [1]
+##  Rcpp                   1.0.2     2019-07-25 [1]
+##  RCurl                  1.95-4.12 2019-03-04 [1]
+##  readr                  1.3.1     2018-12-21 [1]
+##  reshape2             * 1.4.3     2017-12-11 [1]
+##  rlang                  0.4.0     2019-06-25 [1]
+##  rmarkdown              1.16      2019-10-01 [1]
+##  RSQLite                2.1.2     2019-07-24 [1]
+##  rstudioapi             0.10      2019-03-19 [1]
+##  S4Vectors            * 0.22.1    2019-09-09 [1]
+##  scales                 1.0.0     2018-08-09 [1]
+##  sessioninfo            1.1.1     2018-11-05 [1]
+##  shiny                  1.3.2     2019-04-22 [1]
+##  stringi                1.4.3     2019-03-12 [1]
+##  stringr                1.4.0     2019-02-10 [1]
+##  SummarizedExperiment   1.14.1    2019-07-31 [1]
+##  tibble                 2.1.3     2019-06-06 [1]
+##  tidyr                  1.0.0     2019-09-11 [1]
+##  tidyselect             0.2.5     2018-10-11 [1]
+##  vctrs                  0.2.0     2019-07-05 [1]
+##  withr                  2.1.2     2018-03-15 [1]
+##  xfun                   0.10      2019-10-01 [1]
+##  XML                  * 3.98-1.20 2019-06-06 [1]
+##  xml2                   1.2.2     2019-08-09 [1]
+##  xtable                 1.8-4     2019-04-21 [1]
+##  XVector                0.24.0    2019-05-02 [1]
+##  yaml                   2.2.0     2018-07-25 [1]
+##  zeallot                0.1.0     2018-01-28 [1]
+##  zlibbioc               1.30.0    2019-05-02 [1]
+##  source                       
+##  Bioconductor                 
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  Github (llrs/BaseSet@37ba173)
+##  Bioconductor                 
+##  Bioconductor                 
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  Bioconductor                 
+##  Bioconductor                 
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+##  CRAN (R 3.6.0)               
+##  CRAN (R 3.6.0)               
+##  Bioconductor                 
+## 
+## [1] /home/lluis/R/x86_64-pc-linux-gnu-library/3.6
+## [2] /usr/local/lib/R/site-library
+## [3] /usr/lib/R/site-library
+## [4] /usr/lib/R/library</code></pre>
+</div>
+<div id="assigning-cells" class="section level1">
+<h1>Assigning cells</h1>
+<p>Maybe now the question you might have is how would I assign each cell to each cell type.</p>
+<p>Firstly I wouldn’t have any problem with assigning the one that AUCell would suggest if</p>
+<ul>
+<li>it were the one with the highest value and</li>
+<li>the probability for said cell to have just one cell type would be the highest.</li>
+</ul>
+<p>Otherwise, the assignment is mostly incorrect as is done with an arbitrary threshold and without considering all the information available.</p>
+<p>In this case with just 6 cell types the assignment is mostly as an example but with hundreds or thousands of cells the problem becomes more apparent</p>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
