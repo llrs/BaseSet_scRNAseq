@@ -11,7 +11,7 @@
 
 
 
-<meta name="date" content="2019-10-09" />
+<meta name="date" content="2019-10-11" />
 
 <title>Example of using BaseSet in the scRNAseq</title>
 
@@ -298,7 +298,7 @@ $(document).ready(function () {
 
 
 <h1 class="title toc-ignore">Example of using BaseSet in the scRNAseq</h1>
-<h4 class="date">09 oct 2019</h4>
+<h4 class="date">11 oct 2019</h4>
 
 </div>
 
@@ -421,6 +421,7 @@ es %&gt;%
   geom_jitter(aes(size, probability)) +
   labs(x = &quot;# cell types assigned&quot;, y = &quot;Probability&quot;, title = ) +
   scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal()</code></pre>
 <p><img src="AUCell_files/figure-html/ggplot2-1.png" width="672" /></p>
 <p>We can see that many don’t have any assigned cell and some have a</p>
@@ -434,6 +435,7 @@ selected_sizes %&gt;%
   geom_jitter(aes(size, probability, col = S)) +
   labs(x = &quot;# cell types assigned&quot;, y = &quot;log10(Probability)&quot;, col = &quot;Selected&quot;) +
   scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal()</code></pre>
 <p><img src="AUCell_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
 <p>We can see that this way were are the selected number of cell types and their probability. The range of selection of the size is pretty much on the top. We can find them easily:</p>
@@ -497,30 +499,82 @@ cell0 &lt;- comp_assign(es, 0)</code></pre>
 <pre class="r"><code>tcA &lt;- table(unlist(cellsAssigned))
 missing &lt;- colnames(AUC)[!colnames(AUC) %in% names(tcA) &amp; !colnames(AUC) %in% cell0]</code></pre>
 <p>And there is still 164 cells without assigned pathway because they fell off the threshold.</p>
+<p>If we assigned the cell type to the one with higher AUC we would get the following:</p>
+<pre class="r"><code>TS %&gt;% 
+  group_by(elements) %&gt;% 
+  mutate(Selected = if_else(fuzzy == max(fuzzy), TRUE, FALSE)) %&gt;% 
+  ungroup() %&gt;% 
+  ggplot() +
+  geom_jitter(aes(sets, fuzzy, col = Selected)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = &quot;Cell types&quot;, y = &quot;AUC&quot;, title = &quot;Selected cell types&quot;)</code></pre>
+<p><img src="AUCell_files/figure-html/assigned_max-1.png" width="672" /></p>
+<p>Now we can check it with how are really assigned</p>
 </div>
 <div id="aucells-assigned-cells" class="section level1">
 <h1>AUCell’s assigned cells</h1>
+<p>We can check the threshold used and see the score</p>
+<pre class="r"><code>thres &lt;- getThresholdSelected(cells_assignment)
+TS_thres &lt;- TS %&gt;% 
+  mutate(Selected = case_when(
+    sets == &quot;Astrocyte_Cahoy&quot; &amp; fuzzy &gt;= thres[&quot;Astrocyte_Cahoy&quot;] ~ TRUE,
+    sets == &quot;Neuron_Cahoy&quot; &amp; fuzzy &gt;= thres[&quot;Neuron_Cahoy&quot;] ~ TRUE,
+    sets == &quot;Oligodendrocyte_Cahoy&quot; &amp; fuzzy &gt;= thres[&quot;Oligodendrocyte_Cahoy&quot;] ~ TRUE,
+    sets == &quot;Astrocyte_Lein&quot; &amp; fuzzy &gt;= thres[&quot;Astrocyte_Lein&quot;] ~ TRUE,
+    sets == &quot;Neuron_Lein&quot; &amp; fuzzy &gt;= thres[&quot;Neuron_Lein&quot;] ~ TRUE,
+    sets == &quot;Microglia_lavin&quot; &amp; fuzzy &gt;= thres[&quot;Microglia_lavin&quot;] ~ TRUE,
+    TRUE ~ FALSE
+  ))
+relations(TS_thres) %&gt;% 
+  ggplot() +
+  geom_jitter(aes(sets, fuzzy, col = Selected)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = &quot;Cell types&quot;, y = &quot;AUC&quot;, title = &quot;Selected cell types&quot;)</code></pre>
+<p><img src="AUCell_files/figure-html/thres-1.png" width="672" /></p>
 <p>From the assigned cells we can also analyze them:</p>
-<pre class="r"><code>TS2 &lt;- tidySet(cellsAssigned) %&gt;% 
-  add_elements(colnames(AUC)) # To have all the missing cells
-nElements(TS2) # The original number of cells
+<pre class="r"><code>nElements(TS_thres) # The original number of cells
 ## [1] 3005
-es2 &lt;- element_size(TS2)
-es2 %&gt;%
-  count(size, sort = TRUE)
-## # A tibble: 5 x 2
-##    size     n
-##   &lt;dbl&gt; &lt;int&gt;
-## 1     2  1883
-## 2     1   794
-## 3     0   200
-## 4     3   103
-## 5     4    25</code></pre>
-<p>Using the automatically assigned cell types bye AUCell we can see that they cross the thresholds for several cells too.</p>
-<p>This might be explained by the comment at the end of the vignette:</p>
+TS2 &lt;- TS_thres %&gt;% 
+  activate(&quot;relations&quot;) %&gt;% 
+  filter(Selected)  # To have all the missing cells
+nRelations(TS2) # The selected cells
+## [1] 4969
+
+# Cells assigned to a number of cell types 
+TS2 %&gt;% 
+  relations() %&gt;% 
+  group_by(elements) %&gt;% 
+  count(sort = TRUE) %&gt;% 
+  ungroup() %&gt;% 
+  count(n, sort = TRUE) %&gt;% 
+  rename(&quot;cells&quot; = &quot;nn&quot;, &quot;cell types&quot; = &quot;n&quot;)
+## # A tibble: 4 x 2
+##   `cell types` cells
+##          &lt;int&gt; &lt;int&gt;
+## 1            2  1883
+## 2            1   794
+## 3            3   103
+## 4            4    25</code></pre>
+<p>Using the automatically assigned cell types bye AUCell we can see that they cross the thresholds for several cells too. Most cells have two cell types and some even 4.</p>
+<p>This is partially explained by the comment at the end of the vignette:</p>
 <blockquote>
 <p>According to other publications that have used this dataset to evaluate new methods, a relevant group of cells marked as oligodendrocytes are likely doublets (i.e. two cells, for example a mix of an oligodendrocyte + another cell type).</p>
 </blockquote>
+<p>But it wouldn’t explain why there are some cells that have 3 or 4 cell types.</p>
+<p>We can check if this can be expected even after filtering some probabilities</p>
+<pre class="r"><code>TS2 %&gt;% 
+  droplevels(elements = TRUE) %&gt;% # Remove cells that are not assigned
+  element_size() %&gt;% # Probability of having these cells types
+  group_by(elements) %&gt;% 
+  filter(size == max(size)) %&gt;% # Probability of only having these cell types 
+  ggplot() +
+  geom_abline(intercept = 0.5, slope = 0, col = &quot;orange&quot;, alpha = 0.5) +
+  geom_jitter(aes(size, probability)) +
+  theme_minimal()</code></pre>
+<p><img src="AUCell_files/figure-html/assigned_size_probability-1.png" width="672" /></p>
+<p>In all cases we can’t even assume that this is better than tossing a coin!</p>
 </div>
 <div id="sesioninfo" class="section level1 unnumbered">
 <h1>SesionInfo</h1>
@@ -713,17 +767,6 @@ es2 %&gt;%
 ## [2] /usr/local/lib/R/site-library
 ## [3] /usr/lib/R/site-library
 ## [4] /usr/lib/R/library</code></pre>
-</div>
-<div id="assigning-cells" class="section level1">
-<h1>Assigning cells</h1>
-<p>Maybe now the question you might have is how would I assign each cell to each cell type.</p>
-<p>Firstly I wouldn’t have any problem with assigning the one that AUCell would suggest if</p>
-<ul>
-<li>it were the one with the highest value and</li>
-<li>the probability for said cell to have just one cell type would be the highest.</li>
-</ul>
-<p>Otherwise, the assignment is mostly incorrect as is done with an arbitrary threshold and without considering all the information available.</p>
-<p>In this case with just 6 cell types the assignment is mostly as an example but with hundreds or thousands of cells the problem becomes more apparent</p>
 </div>
 
 

@@ -140,6 +140,7 @@ ggplot(es) +
   geom_jitter(aes(size, probability)) +
   labs(x = "# cell types assigned", y = "Probability", title = ) +
   scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal()
 ```
 
@@ -156,6 +157,7 @@ selected_sizes %>%
   geom_jitter(aes(size, probability, col = S)) +
   labs(x = "# cell types assigned", y = "log10(Probability)", col = "Selected") +
   scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal()
 ```
 
@@ -225,40 +227,91 @@ missing <- colnames(AUC)[!colnames(AUC) %in% names(tcA) & !colnames(AUC) %in% ce
 
 And there is still `r length(missing)` cells without assigned pathway because they fell off the threshold.
 
+If we assigned the cell type to the one with higher AUC we would get the following:
+
+```{r assigned_max}
+TS %>% 
+  group_by(elements) %>% 
+  mutate(Selected = if_else(fuzzy == max(fuzzy), TRUE, FALSE)) %>% 
+  ungroup() %>% 
+  ggplot() +
+  geom_jitter(aes(sets, fuzzy, col = Selected)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "Cell types", y = "AUC", title = "Selected cell types")
+```
+
+Now we can check it with how are really assigned
+
 # AUCell's assigned cells
+
+We can check the threshold used and see the score
+
+```{r thres}
+thres <- getThresholdSelected(cells_assignment)
+TS_thres <- TS %>% 
+  mutate(Selected = case_when(
+    sets == "Astrocyte_Cahoy" & fuzzy >= thres["Astrocyte_Cahoy"] ~ TRUE,
+    sets == "Neuron_Cahoy" & fuzzy >= thres["Neuron_Cahoy"] ~ TRUE,
+    sets == "Oligodendrocyte_Cahoy" & fuzzy >= thres["Oligodendrocyte_Cahoy"] ~ TRUE,
+    sets == "Astrocyte_Lein" & fuzzy >= thres["Astrocyte_Lein"] ~ TRUE,
+    sets == "Neuron_Lein" & fuzzy >= thres["Neuron_Lein"] ~ TRUE,
+    sets == "Microglia_lavin" & fuzzy >= thres["Microglia_lavin"] ~ TRUE,
+    TRUE ~ FALSE
+  ))
+relations(TS_thres) %>% 
+  ggplot() +
+  geom_jitter(aes(sets, fuzzy, col = Selected)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "Cell types", y = "AUC", title = "Selected cell types")
+```
 
 From the assigned cells we can also analyze them:
 
 ```{r tidyAssigned}
-TS2 <- tidySet(cellsAssigned) %>% 
-  add_elements(colnames(AUC)) # To have all the missing cells
-nElements(TS2) # The original number of cells
-es2 <- element_size(TS2)
-es2 %>%
-  count(size, sort = TRUE)
+nElements(TS_thres) # The original number of cells
+TS2 <- TS_thres %>% 
+  activate("relations") %>% 
+  filter(Selected)  # To have all the missing cells
+nRelations(TS2) # The selected cells
+
+# Cells assigned to a number of cell types 
+TS2 %>% 
+  relations() %>% 
+  group_by(elements) %>% 
+  count(sort = TRUE) %>% 
+  ungroup() %>% 
+  count(n, sort = TRUE) %>% 
+  rename("cells" = "nn", "cell types" = "n")
 ```
 
-Using the automatically assigned cell types bye AUCell we can see that they cross the thresholds for several cells too.
+Using the automatically assigned cell types bye AUCell we can see that they cross the thresholds for several cells too. Most cells have two cell types and some even 4.
 
-This might be explained by the comment at the end of the vignette:
+This is partially explained by the comment at the end of the vignette:
 
 > According to other publications that have used this dataset to evaluate new methods, a relevant group of cells marked as oligodendrocytes are likely doublets (i.e. two cells, for example a mix of an oligodendrocyte + another cell type).
+
+But it wouldn't explain why there are some cells that have 3 or 4 cell types.
+
+We can check if this can be expected even after filtering some probabilities
+
+```{r assigned_size_probability}
+TS2 %>% 
+  droplevels(elements = TRUE) %>% # Remove cells that are not assigned
+  element_size() %>% # Probability of having these cells types
+  group_by(elements) %>% 
+  filter(size == max(size)) %>% # Probability of only having these cell types 
+  ggplot() +
+  geom_abline(intercept = 0.5, slope = 0, col = "orange", alpha = 0.5) +
+  geom_jitter(aes(size, probability)) +
+  theme_minimal()
+```
+
+In all cases we can't even assume that this is better than tossing a coin!
 
 # SesionInfo {.unnumbered}
 
 ```{r sessionInfo}
 sessioninfo::session_info()
 ```
-
-# Assigning cells 
-
-Maybe now the question you might have is how would I assign each cell to each cell type.
-
-Firstly I wouldn't have any problem  with assigning the one that AUCell would suggest if 
-
-- it were the one with the highest value and 
-- the probability for said cell to have just one cell type would be the highest.
-
-Otherwise, the assignment is mostly incorrect as is done with an arbitrary threshold and without considering all the information available.
-
-In this case with just 6 cell types the assignment is mostly as an example but with hundreds or thousands of cells the problem becomes more apparent
