@@ -11,7 +11,7 @@
 
 
 
-<meta name="date" content="2019-10-11" />
+<meta name="date" content="2019-10-12" />
 
 <title>Example of using BaseSet in the scRNAseq</title>
 
@@ -298,7 +298,7 @@ $(document).ready(function () {
 
 
 <h1 class="title toc-ignore">Example of using BaseSet in the scRNAseq</h1>
-<h4 class="date">11 oct 2019</h4>
+<h4 class="date">12 oct 2019</h4>
 
 </div>
 
@@ -563,7 +563,16 @@ TS2 %&gt;%
 <p>According to other publications that have used this dataset to evaluate new methods, a relevant group of cells marked as oligodendrocytes are likely doublets (i.e. two cells, for example a mix of an oligodendrocyte + another cell type).</p>
 </blockquote>
 <p>But it wouldn’t explain why there are some cells that have 3 or 4 cell types.</p>
-<p>We can check if this can be expected even after filtering some probabilities</p>
+<p>In summary we have these cells assigned:</p>
+<pre class="r"><code>TS2 %&gt;%
+  as.data.frame() %&gt;%
+  select(-fuzzy) %&gt;%
+  ggplot() + 
+  geom_bar(aes(sets)) + 
+  labs(x = &quot;Cell types&quot;, y = &quot;cells&quot;, title = &quot;Cells assigned to each cell type&quot;) +
+  theme_minimal() </code></pre>
+<p><img src="AUCell_files/figure-html/cells_asigned_barplot-1.png" width="672" /></p>
+<p>We can check if this can be expected even after filtering some probabilities:</p>
 <pre class="r"><code>TS2 %&gt;% 
   droplevels(elements = TRUE) %&gt;% # Remove cells that are not assigned
   element_size() %&gt;% # Probability of having these cells types
